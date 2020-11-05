@@ -33,11 +33,30 @@ week_9 <- kenya %>%
 
 * Write the math for this model.
 
+$reg\_chg = \beta_0 + \beta_1 * local_i + \beta_2 poverty\_n_i_i + \beta_3 local_i poverty\_n_i + \epsilon_i$
+
 * Describe the population for which you are creating the model.
+
+kenya elctions between time data is recorded
 
 * Fit the  model and interpret the coefficients. Focus on the coefficient of the interaction term.
 
+intercept: when other vars are at zero. mean of original dataset. .04 is the average regustration change fo comunitie where poverty rate is the mean 
 
+treatmentlocal: effect of being treated on registration change
+
+poverty_n: slope for povrty when treatment local is 0 because slope for pov n is 0 when ... the interaction term is telling us that there is a lager effect of poverty in teh treattment groups than the relationshipbetween poverty and reg change in teh control groups 
+
+var itself is not the slope for the var not included 
+
+```{r}
+fit <- stan_glm(formula = reg_chg ~ treatment*poverty_n,
+          data = week_9,
+          refresh = 0,
+          family = gaussian())
+print(fit, digits = 4)
+
+```
 
 
 ## Scene 2
@@ -50,12 +69,45 @@ Write a sentence or two for each of these topics:
 
 * What would Wisdom suggest about the use of the `kenya` data to answer this question?
 
+wisdom would indivate thet the data is pproproate to answering teh question aboce with the study being conducted in JAnuary and reg_chg approprately mapping changes in voter registration relative to treatment.
+
 * Describe the ideal Preceptor Table.
+
+would have reg change value for multiple observations as well as their sex and 
+local and control values for eah polling station, to approriately note the treatment as wella s poverty 
+ideally, this table would include each row as a difff polling station, would be looking at treatment and control status fro eachstation adn its poverty n level
+
 
 * Graph the posterior probability distribution `reg_chg` if polling station 007/001 were to be assigned treatment in January.
 
 * Answer the President's question.
 
+```{r}
+
+newobs <- tibble(treatment = "Control", poverty_n = -1.60835093)
+
+# using posterior [redict becuae we are working with an individual]
+pp <- posterior_predict(fit, new_data = newobs) %>%
+  as_tibble() %>%
+  mutate_all(as.numeric)
+
+pp %>%
+  ggplot(aes(x = `1`)) +
+  geom_histogram(aes(y = after_stat(count/sum(count))),
+                 alpha = 0.5,
+                 bins = 100,
+                 color = "darkslateblue",
+                 fill = "lavender") +
+  labs(title = "Posterior Predictive Distribution",
+       subtitle = "registation change at polling station 007/001 under treatment",
+       x = "Change in Attitude",
+       y = "Probability") +
+  scale_y_continuous(labels=scales::percent_format()) + 
+  theme_classic()
+
+sum(pp$`1` > 0.04)/length(pp$`1`)
+
+```
 
 
 
@@ -68,5 +120,34 @@ Write a sentence or two for each of these topics:
 
 Using the model which you created in Scene 1, create a graphic of the posterior probability distribution of the causal effect of `local` treatment in polling stations which have +2 sigma poverty rates. Note that there are two ways to do this. First, we can use a parameter approach. This is what we did in class last week. Second, we can use `posterior_epred()`, which is generally easier since it does the math for us. Use the `posterior_epred()` approach. 
 
+whts the diff bw an indiidual level of prediction and a range of expectation 
+```{r}
+
+newobs2 <- tibble(treatment = c("local", "control"), poverty_n = 2)
+  
+  
+pe <- posterior_epred(fit, newdata = newobs2) %>%
+  as_tibble() %>%
+  mutate_all(as.numeric) %>%
+  mutate(ce = `1` - `2`)
+
+pe %>%
+  ggplot(aes(ce)) +
+  geom_histogram(aes(y = after_stat(count/sum(count))),
+                 alpha = 0.5,
+                 bins = 100,
+                 color = "darkslateblue",
+                 fill = "lavender") +
+  labs(title = "Posterior Probabiloity Distribution for Causal Effect of Treatment",
+       subtitle = "for local reisrtation at polling stations in poor communities",
+       x = "Expected Change in Registration ",
+       y = "Probability") +
+  scale_x_continuous(labels=scales::percent_format(accuracy = 1)) +
+  scale_y_continuous(labels=scales::percent_format(accuracy = 1)) + 
+  theme_classic()
+
+
+
+```
 
 
